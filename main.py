@@ -1,4 +1,4 @@
-import random, sys, time
+import copy, random, sys, time
 
 try:
     import bext
@@ -6,147 +6,126 @@ except ImportError:
     print("you need bext module")
     sys.exit()
 
-PAUSE_LENGTH = 0.2
-WIDE_FALL_CHANCE = 50
+WIDTH , HEIGHT = bext.size()
 
-SCREEN_WIDTH = 79
-SCREEN_HEIGHT = 25
+WIDTH -=1
+HEIGHT -=1
 
-X = 0
-Y = 1
-SAND = chr(9617)
-WALL = chr(9608)
+NUMBER_OF_ANTS = 10
+PAUSE_AMOUNT = 0.1
 
-HOURGLASS = set()
-for i in range(18,37):
-    HOURGLASS.add((i, 1))
-    HOURGLASS.add((i, 23))
-for i in range(1,5):
-    HOURGLASS.add((18, i))
-    HOURGLASS.add((36, i))
-    HOURGLASS.add((18, i + 19))
-    HOURGLASS.add((36, i + 19))
-for i in range(8):
-    HOURGLASS.add((19 + i, 5 + i))
-    HOURGLASS.add((35 - i, 5 + i))
-    HOURGLASS.add((25 - i, 13 + i))
-    HOURGLASS.add((29 + i, 13 + i))
+ANT_UP = "^"
+ANT_DOWN = "v"
+ANT_LEFT = "<"
+ANT_RIGHT = ">"
 
-INITIAL_SAND = set()
-for y in range(8):
-    for x in range(19 + y, 36 - y):
-        INITIAL_SAND.add((x, y + 4))
+ANT_COLOR = "red"
+BLACK_TILE ="black"
+WHITE_TILE ="white"
+
+NORTH ="north"
+SOUTH ="south"
+EAST ="east"
+WEST = "west"
 
 def main():
-    bext.fg("yellow")
+    bext.fg(ANT_COLOR)
+    bext.bg(WHITE_TILE)
     bext.clear()
 
-    bext.goto(0, 0)
-    print('Ctrl-C to quit.', end='')
+    board= {"width": WIDTH,"height": HEIGHT}
 
-    for wall in HOURGLASS:
-        bext.goto(wall[X], wall[Y])
-        print(WALL, end='')
+    ants = []
+    for i in range(NUMBER_OF_ANTS):
+        ant = {
+            "x": random.randint(0,WIDTH-1),
+            "y": random.randint(0,HEIGHT-1),
+            "direction": random.choice([NORTH,SOUTH,EAST,WEST]),
+        }
+        ants.append(ant)
+
+    changedTiles = []
 
     while True:
-        allSand = list(INITIAL_SAND)
-        for sand in allSand:
-            bext.goto(sand[X], sand[Y])
-            print(SAND, end='')
+        displayBoard(board,ants,changedTiles)
+        changedTiles = []
+        nextBoard = copy.copy(board)
+        for ant in ants:
+            if board.get((ant["x"],ant["y"]),False) == True:
+                nextBoard[(ant["x"], ant["y"])] = False
 
-        runHourglassSimulation(allSand)
+                if ant["direction"] == NORTH:
+                    ant["direction"] = EAST
+                elif ant["direction"] == EAST:
+                    ant["direction"] = SOUTH
+                elif ant["direction"] == SOUTH:
+                    ant["direction"] = WEST
+                elif ant["direction"] == WEST:
+                    ant["direction"] = NORTH
 
-def runHourglassSimulation(allSand):
-    while True:
-        random.shuffle(allSand)
-
-        sandMovedOnThisStep = False
-        for i, sand in enumerate(allSand):
-            if sand[Y] == SCREEN_HEIGHT - 1:
-                continue
-
-            noSandBelow = (sand[X], sand[Y] + 1) not in allSand
-            noWallBelow = (sand[X], sand[Y] + 1) not in HOURGLASS
-            canFallDown = noSandBelow and noWallBelow
-
-            if canFallDown:
-                bext.goto(sand[X], sand[Y])
-                print(' ', end='')
-                bext.goto(sand[X], sand[Y] + 1)
-                print(SAND, end='')
-
-                allSand[i] = (sand[X], sand[Y] + 1)
-                sandMovedOnThisStep = True
             else:
-                belowLeft = (sand[X]-1,sand[Y]+1)
-                noSandBelowLeft = belowLeft not in allSand
-                noWallBelowLeft = belowLeft not in HOURGLASS
-                left = (sand[X]-1,sand[Y])
-                noWallLeft = left not in HOURGLASS
-                notOnLeftEdge = sand[X] > 0
-                canFallLeft = (noSandBelowLeft and noWallBelowLeft and noWallLeft and notOnLeftEdge)
+                nextBoard[(ant['x'], ant['y'])] = True
+                if ant['direction'] == NORTH:
+                    ant['direction'] = WEST
+                elif ant['direction'] == WEST:
+                    ant['direction'] = SOUTH
+                elif ant['direction'] == SOUTH:
+                    ant['direction'] = EAST
+                elif ant['direction'] == EAST:
+                    ant['direction'] = NORTH
+            changedTiles.append((ant["x"],ant["y"]))
 
-                belowRight = (sand[X]+1,sand[Y]+1)
-                noSandBelowRight = belowRight not in allSand
-                noWallBelowRight = belowRight not in HOURGLASS
-                right = (sand[X]+1,sand[Y])
-                noWallRight = right not in HOURGLASS
-                notOnRightEdge = sand[X] < SCREEN_WIDTH-1
-                canFallRight = (noSandBelowRight and noWallBelowRight and noWallRight and notOnRightEdge)
+            if ant["direction"] == NORTH:
+                ant["y"] -= 1
+            if ant['direction'] == SOUTH:
+                ant['y'] += 1
+            if ant['direction'] == WEST:
+                ant['x'] -= 1
+            if ant['direction'] == EAST:
+                ant['x'] += 1
 
-                fallingDirection = None
-                if canFallLeft and not canFallRight:
-                    fallingDirection = -1
-                elif not canFallLeft and canFallRight:
-                    fallingDirection = 1
-                elif canFallLeft and canFallRight:
-                    fallingDirection = random.choice((-1,1))
+            ant['x'] = ant['x'] % WIDTH
+            ant['y'] = ant['y'] % HEIGHT
 
-                if random.random() * 100 <= WIDE_FALL_CHANCE:
-                    belowTwoLeft = (sand[X] - 2, sand[Y] + 1)
-                    noSandBelowTwoLeft = belowTwoLeft not in allSand
-                    noWallBelowTwoLeft = belowTwoLeft not in HOURGLASS
-                    notOnSecondToLeftEdge = sand[X] > 1
-                    canFallTwoLeft = (canFallLeft and noSandBelowTwoLeft and noWallBelowTwoLeft and notOnSecondToLeftEdge)
+            changedTiles.append((ant['x'], ant['y']))
 
-                    belowTwoRight = (sand[X] + 2, sand[Y] + 1)
-                    noSandBelowTwoRight = belowTwoRight not in allSand
-                    noWallBelowTwoRight = belowTwoRight not in HOURGLASS
-                    notOnSecondToRightEdge = sand[X] < SCREEN_WIDTH - 2
-                    canFallTwoRight = (canFallRight and noSandBelowTwoRight and noWallBelowTwoRight and notOnSecondToRightEdge)
+        board = nextBoard
 
-                    if canFallTwoLeft and not canFallTwoRight:
-                        fallingDirection = -2
-                    elif not canFallTwoLeft and canFallTwoRight:
-                        fallingDirection = 2
-                    elif canFallTwoLeft and canFallTwoRight:
-                        fallingDirection = random.choice((-2,2))
+def displayBoard(board, ants, changedTiles):
+    for x,y in changedTiles:
+        bext.goto(x,y)
+        if board.get((x,y),False):
+            bext.bg(BLACK_TILE)
+        else:
+            bext.bg(WHITE_TILE)
 
-                if fallingDirection == None:
-                    continue
+        antIsHere = False
+        for ant in ants:
+            if (x, y) == (ant['x'], ant['y']):
+                antIsHere = True
+                if ant['direction'] == NORTH:
+                    print(ANT_UP, end='')
+                elif ant['direction'] == SOUTH:
+                    print(ANT_DOWN, end='')
+                elif ant['direction'] == EAST:
+                    print(ANT_LEFT, end='')
+                elif ant['direction'] == WEST:
+                    print(ANT_RIGHT, end='')
+                break
 
-                bext.goto(sand[X], sand[Y])
-                print(' ', end='')
-                bext.goto(sand[X] + fallingDirection, sand[Y] + 1)
-                print(SAND, end='')
+        if not antIsHere:
+            print(' ', end='')
 
-                allSand[i] = (sand[X] + fallingDirection, sand[Y] + 1)
-                sandMovedOnThisStep = True
+    bext.goto(0, HEIGHT)
+    bext.bg(WHITE_TILE)
+    print('Press Ctrl-C to quit.', end='')
 
-        sys.stdout.flush()
-        time.sleep(PAUSE_LENGTH)
-
-        if not sandMovedOnThisStep:
-            time.sleep(2)
-            for sand in allSand:
-                bext.goto(sand[X], sand[Y])
-                print(' ', end='')
-            break
+    sys.stdout.flush()
+    time.sleep(PAUSE_AMOUNT)
 
 if __name__ == '__main__':
     try:
         main()
     except KeyboardInterrupt:
+        print("goodbye my dear!")
         sys.exit()
-
-
