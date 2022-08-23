@@ -1,4 +1,4 @@
-import copy, random, sys, time
+import sys , random
 
 try:
     import bext
@@ -6,126 +6,129 @@ except ImportError:
     print("you need bext module")
     sys.exit()
 
-WIDTH , HEIGHT = bext.size()
+MIN_X_INCREASE = 6
+MAX_X_INCREASE = 16
+MIN_Y_INCREASE = 3
+MAX_Y_INCREASE = 6
+WHITE = 'white'
+BLACK = 'black'
+RED = 'red'
+YELLOW = 'yellow'
+BLUE = 'blue'
 
-WIDTH -=1
-HEIGHT -=1
+width,height = bext.size()
 
-NUMBER_OF_ANTS = 10
-PAUSE_AMOUNT = 0.1
+width -=1
+height -=3
 
-ANT_UP = "^"
-ANT_DOWN = "v"
-ANT_LEFT = "<"
-ANT_RIGHT = ">"
+while True:
+    canvas = {}
+    for x in range(width):
+        for y in range(height):
+            canvas[(x,y)] = WHITE
 
-ANT_COLOR = "red"
-BLACK_TILE ="black"
-WHITE_TILE ="white"
+    numberOfSegmentsToDelete = 0
+    x = random.randint(MIN_X_INCREASE, MAX_X_INCREASE)
+    while x < width - MIN_X_INCREASE:
+        numberOfSegmentsToDelete += 1
+        for y in range(height):
+            canvas[(x, y)] = BLACK
+        x += random.randint(MIN_X_INCREASE, MAX_X_INCREASE)
+    y = random.randint(MIN_Y_INCREASE, MAX_Y_INCREASE)
+    while y < height - MIN_Y_INCREASE:
+        numberOfSegmentsToDelete += 1
+        for x in range(width):
+            canvas[(x, y)] = BLACK
+        y += random.randint(MIN_Y_INCREASE, MAX_Y_INCREASE)
+    numberOfRectanglesToPaint = numberOfSegmentsToDelete - 3
+    numberOfSegmentsToDelete = int(numberOfSegmentsToDelete * 1.5)
 
-NORTH ="north"
-SOUTH ="south"
-EAST ="east"
-WEST = "west"
+    for i in range(numberOfSegmentsToDelete):
+        while True:
+            startx = random.randint(1, width - 2)
+            starty = random.randint(1, height - 2)
+            if canvas[(startx, starty)] == WHITE:
+                continue
 
-def main():
-    bext.fg(ANT_COLOR)
-    bext.bg(WHITE_TILE)
-    bext.clear()
-
-    board= {"width": WIDTH,"height": HEIGHT}
-
-    ants = []
-    for i in range(NUMBER_OF_ANTS):
-        ant = {
-            "x": random.randint(0,WIDTH-1),
-            "y": random.randint(0,HEIGHT-1),
-            "direction": random.choice([NORTH,SOUTH,EAST,WEST]),
-        }
-        ants.append(ant)
-
-    changedTiles = []
-
-    while True:
-        displayBoard(board,ants,changedTiles)
-        changedTiles = []
-        nextBoard = copy.copy(board)
-        for ant in ants:
-            if board.get((ant["x"],ant["y"]),False) == True:
-                nextBoard[(ant["x"], ant["y"])] = False
-
-                if ant["direction"] == NORTH:
-                    ant["direction"] = EAST
-                elif ant["direction"] == EAST:
-                    ant["direction"] = SOUTH
-                elif ant["direction"] == SOUTH:
-                    ant["direction"] = WEST
-                elif ant["direction"] == WEST:
-                    ant["direction"] = NORTH
-
+            if (canvas[(startx - 1, starty)] == WHITE and canvas[(startx + 1, starty)] == WHITE):
+                orientation = 'vertical'
+            elif (canvas[(startx, starty - 1)] == WHITE and canvas[(startx, starty + 1)] == WHITE):
+                orientation = 'horizontal'
             else:
-                nextBoard[(ant['x'], ant['y'])] = True
-                if ant['direction'] == NORTH:
-                    ant['direction'] = WEST
-                elif ant['direction'] == WEST:
-                    ant['direction'] = SOUTH
-                elif ant['direction'] == SOUTH:
-                    ant['direction'] = EAST
-                elif ant['direction'] == EAST:
-                    ant['direction'] = NORTH
-            changedTiles.append((ant["x"],ant["y"]))
+                continue
 
-            if ant["direction"] == NORTH:
-                ant["y"] -= 1
-            if ant['direction'] == SOUTH:
-                ant['y'] += 1
-            if ant['direction'] == WEST:
-                ant['x'] -= 1
-            if ant['direction'] == EAST:
-                ant['x'] += 1
+            pointsToDelete = [(startx,starty)]
+            canDeleteSegment = True
+            if orientation == 'vertical':
+                for changey in (-1, 1):
+                    y = starty
+                    while 0 < y < height - 1:
+                        y += changey
+                        if (canvas[(startx - 1, y)] == BLACK and canvas[(startx + 1, y)] == BLACK):
+                            break
+                        elif ((canvas[(startx - 1, y)] == WHITE and canvas[(startx + 1, y)] == BLACK) or (canvas[(startx - 1, y)] == BLACK and canvas[(startx + 1, y)] == WHITE)):
+                            canDeleteSegment = False
+                            break
+                        else:
+                            pointsToDelete.append((startx, y))
 
-            ant['x'] = ant['x'] % WIDTH
-            ant['y'] = ant['y'] % HEIGHT
+            elif orientation == 'horizontal':
+                for changex in (-1, 1):
+                    x = startx
+                    while 0 < x < width - 1:
+                        x += changex
+                        if (canvas[(x, starty - 1)] == BLACK and canvas[(x, starty + 1)] == BLACK):
+                            break
+                        elif ((canvas[(x, starty - 1)] == WHITE and canvas[(x, starty + 1)] == BLACK) or (canvas[(x, starty - 1)] == BLACK and canvas[(x, starty + 1)] == WHITE)):
+                            canDeleteSegment = False
+                            break
+                        else:
+                            pointsToDelete.append((x, starty))
 
-            changedTiles.append((ant['x'], ant['y']))
+            if not canDeleteSegment:
+                continue
+            break
 
-        board = nextBoard
+        for x, y in pointsToDelete:
+            canvas[(x, y)] = WHITE
+    for x in range(width):
+        canvas[(x, 0)] = BLACK
+        canvas[(x, height - 1)] = BLACK
+    for y in range(height):
+        canvas[(0, y)] = BLACK
+        canvas[(width - 1, y)] = BLACK
 
-def displayBoard(board, ants, changedTiles):
-    for x,y in changedTiles:
-        bext.goto(x,y)
-        if board.get((x,y),False):
-            bext.bg(BLACK_TILE)
-        else:
-            bext.bg(WHITE_TILE)
+    for i in range(numberOfRectanglesToPaint):
+        while True:
+            startx = random.randint(1, width - 2)
+            starty = random.randint(1, height - 2)
 
-        antIsHere = False
-        for ant in ants:
-            if (x, y) == (ant['x'], ant['y']):
-                antIsHere = True
-                if ant['direction'] == NORTH:
-                    print(ANT_UP, end='')
-                elif ant['direction'] == SOUTH:
-                    print(ANT_DOWN, end='')
-                elif ant['direction'] == EAST:
-                    print(ANT_LEFT, end='')
-                elif ant['direction'] == WEST:
-                    print(ANT_RIGHT, end='')
+            if canvas[(startx, starty)] != WHITE:
+                continue
+            else:
                 break
+        colorToPaint = random.choice([RED, YELLOW, BLUE, BLACK])
+        pointsToPaint = set([(startx, starty)])
+        while len(pointsToPaint) > 0:
+            x, y = pointsToPaint.pop()
+            canvas[(x, y)] = colorToPaint
+            if canvas[(x - 1, y)] == WHITE:
+                pointsToPaint.add((x - 1, y))
+            if canvas[(x + 1, y)] == WHITE:
+                pointsToPaint.add((x + 1, y))
+            if canvas[(x, y - 1)] == WHITE:
+                pointsToPaint.add((x, y - 1))
+            if canvas[(x, y + 1)] == WHITE:
+                pointsToPaint.add((x, y + 1))
 
-        if not antIsHere:
+    for y in range(height):
+        for x in range(width):
+            bext.bg(canvas[(x, y)])
             print(' ', end='')
 
-    bext.goto(0, HEIGHT)
-    bext.bg(WHITE_TILE)
-    print('Press Ctrl-C to quit.', end='')
+        print()
 
-    sys.stdout.flush()
-    time.sleep(PAUSE_AMOUNT)
-
-if __name__ == '__main__':
     try:
-        main()
+        input('Press Enter for another work of art, or Ctrl-C to quit.')
     except KeyboardInterrupt:
-        print("goodbye my dear!")
         sys.exit()
