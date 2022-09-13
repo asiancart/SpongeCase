@@ -1,81 +1,97 @@
-import copy
-import sys
+import random, time
 
-TOTAL_DISKS = 5
+NUM_SWAPS = 16
+DELAY = 0.8
 
-COMPLETE_TOWER = list(range(TOTAL_DISKS,0,-1))
+HEARTS = chr(9829)
+DIAMONDS = chr(9830)
+SPADES = chr(9824)
+CLUBS = chr(9827)
 
-def main():
-    print("""The Tower of Hanoi game""")
+LEFT = 0
+MIDDLE = 1
+RIGHT = 2
 
-    towers = {'A': copy.copy(COMPLETE_TOWER),'B': [], 'C': []}
+def displayCards(cards):
+    rows = ["", "", "", "", ""]
 
+    for i , card in enumerate(cards):
+        rank, suit = card
+        rows[0] += ' ___ '
+        rows[1] += '|{} | '.format(rank.ljust(2))
+        rows[2] += '| {} | '.format(suit)
+        rows[3] += '|_{}| '.format(rank.rjust(2, '_'))
+
+
+    for i in range(5):
+        print(rows[i])
+
+def getRandomCard():
     while True:
-        displayTowers(towers)
+        rank = random.choice(list('23456789JQKA')+ ['10'])
+        suit = random.choice([HEARTS,SPADES,DIAMONDS,CLUBS])
 
-        fromTower, toTower = askForPlayerMove(towers)
+        if rank != 'Q' and suit != HEARTS:
+            return(rank,suit)
 
-        disk = towers[fromTower].pop()
-        towers[toTower].append(disk)
+print('Three-Card Monte game')
+print()
+print('Find the red lady (the Queen of Hearts)! Keep an eye on how')
+print('the cards move.')
+print()
 
-        if COMPLETE_TOWER in (towers['B'], towers['C']):
-            displayTowers(towers)
-            print('You have solved the puzzle. Bravo! ')
-            sys.exit()
+cards = [('Q',HEARTS),getRandomCard(),getRandomCard()]
+random.shuffle(cards)
+print('Here are the cards:')
+displayCards(cards)
+input('Press Enter when you are ready to begin...')
 
-def askForPlayerMove(towers):
-    """Asks the player for a move. Returns (fromTower, toTower)."""
+for i in range(NUM_SWAPS):
+    swap = random.choice(['l-m', 'm-r', 'l-r', 'm-l', 'r-m', 'r-l'])
 
-    while True:
-        print('Enter the letters of "from" and "to" towers, or QUIT.')
-        print('(e.g. AB to moves a disk from tower A to tower B.)')
-        response = input('> ').upper().strip()
+    if swap == 'l-m':
+        print('swapping left and middle...')
+        cards[LEFT], cards[MIDDLE] = cards[MIDDLE], cards[LEFT]
+    elif swap == 'm-r':
+        print('swapping middle and right...')
+        cards[MIDDLE], cards[RIGHT] = cards[RIGHT], cards[MIDDLE]
+    elif swap == 'l-r':
+        print('swapping left and right...')
+        cards[LEFT], cards[RIGHT] = cards[RIGHT], cards[LEFT]
+    elif swap == 'm-l':
+        print('swapping middle and left...')
+        cards[MIDDLE], cards[LEFT] = cards[LEFT], cards[MIDDLE]
+    elif swap == 'r-m':
+        print('swapping right and middle...')
+        cards[RIGHT], cards[MIDDLE] = cards[MIDDLE], cards[RIGHT]
+    elif swap == 'r-l':
+        print('swapping right and left...')
+        cards[RIGHT], cards[LEFT] = cards[LEFT], cards[RIGHT]
 
-        if response == "QUIT":
-            print("Thanks for playing")
-            sys.exit()
+    time.sleep(DELAY)
 
-        if response not in ('AB', 'AC', 'BA', 'BC', 'CA', 'CB'):
-            print('Enter one of AB, AC, BA, BC, CA, or CB.')
-            continue
+print('\n'*60)
 
-        fromTower, toTower = response[0], response[1]
+while True:
+    print('Which card has the Queen of Hearts? (LEFT MIDDLE RIGHT)')
+    guess = input('> ').upper()
 
-        if len(towers[fromTower]) == 0:
-            print('You selected a tower with no disks.')
-            continue
-        elif len(towers[toTower]) == 0:
-            return fromTower, toTower
-        elif towers[toTower][-1] < towers[fromTower][-1]:
-            print('Can\'t put larger disks on top of smaller ones.')
-            continue
-        else:
-            return fromTower, toTower
+    if guess in ['LEFT', 'MIDDLE', 'RIGHT']:
+        if guess == 'LEFT':
+            guessIndex = 0
+        elif guess == 'MIDDLE':
+            guessIndex = 1
+        elif guess == 'RIGHT':
+            guessIndex = 2
+        break
 
-def displayTowers(towers):
+displayCards(cards)
 
-    for level in range(TOTAL_DISKS,-1,-1):
-        for tower in (towers['A'], towers['B'], towers['C']):
-            if level >= len(tower):
-                displayDisk(0)
-            else:
-                displayDisk(tower[level])
-        print()
-
-    emptySpace = ' ' * (TOTAL_DISKS)
-    print('{0} A{0}{0} B{0}{0} C\n'.format(emptySpace))
+if cards[guessIndex] == ('Q', HEARTS):
+    print("You won!")
+    print("Thanks for playing")
+else:
+    print('You lost!')
 
 
-def displayDisk(width):
 
-    emptySpace = ' ' * (TOTAL_DISKS-width)
-
-    if width == 0:
-        print(emptySpace+ '||' + emptySpace,end='')
-    else:
-        disk = '@' * width
-        numLabel= str(width).rjust(2, '_')
-        print(emptySpace+ disk+ numLabel+ disk + emptySpace, end="")
-
-if __name__ == "__main__":
-    main()
