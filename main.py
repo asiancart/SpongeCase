@@ -1,97 +1,190 @@
-import random, time
+import copy,random,sys
 
-NUM_SWAPS = 16
-DELAY = 0.8
+EMPTY_SPACE = '.'
+GRID_LENGTH = 9
+BOX_LENGTH = 3
+FULL_GRID_SIZE = GRID_LENGTH * GRID_LENGTH
 
-HEARTS = chr(9829)
-DIAMONDS = chr(9830)
-SPADES = chr(9824)
-CLUBS = chr(9827)
+class SudokuGrid:
+    def __init__(self,originalSetup):
+        self.originalSetup = originalSetup
 
-LEFT = 0
-MIDDLE = 1
-RIGHT = 2
+        self.grid = {}
+        self.resetGrid()
+        self.moves = []
 
-def displayCards(cards):
-    rows = ["", "", "", "", ""]
+    def resetGrid(self):
 
-    for i , card in enumerate(cards):
-        rank, suit = card
-        rows[0] += ' ___ '
-        rows[1] += '|{} | '.format(rank.ljust(2))
-        rows[2] += '| {} | '.format(suit)
-        rows[3] += '|_{}| '.format(rank.rjust(2, '_'))
+        for x in range(1,GRID_LENGTH+1):
+            for y in range(1,GRID_LENGTH+1):
+                self.grid[(x,y)] = EMPTY_SPACE
 
+        assert len(self.originalSetup) ==FULL_GRID_SIZE
+        i = 0
+        y = 0
+        while i < FULL_GRID_SIZE:
+            for x in range(GRID_LENGTH):
+                self.grid[(x,y)] = self.originalSetup[i]
+                i += 1
+            y+= 1
 
-    for i in range(5):
-        print(rows[i])
+    def makeMove(self,column,row,number):
+        x = 'ABCDEFGHI'.find(column)
+        y = int(row) -1
 
-def getRandomCard():
-    while True:
-        rank = random.choice(list('23456789JQKA')+ ['10'])
-        suit = random.choice([HEARTS,SPADES,DIAMONDS,CLUBS])
+        if self.originalSetup[y*GRID_LENGTH+x] != EMPTY_SPACE:
+            return False
 
-        if rank != 'Q' and suit != HEARTS:
-            return(rank,suit)
+        self.grid[(x,y)] = number
 
-print('Three-Card Monte game')
-print()
-print('Find the red lady (the Queen of Hearts)! Keep an eye on how')
-print('the cards move.')
-print()
+        self.moves.append(copy.copy(self.grid))
+        return True
 
-cards = [('Q',HEARTS),getRandomCard(),getRandomCard()]
-random.shuffle(cards)
-print('Here are the cards:')
-displayCards(cards)
-input('Press Enter when you are ready to begin...')
+    def undo(self):
+        if self.moves == []:
+            return
 
-for i in range(NUM_SWAPS):
-    swap = random.choice(['l-m', 'm-r', 'l-r', 'm-l', 'r-m', 'r-l'])
+        self.moves.pop()
 
-    if swap == 'l-m':
-        print('swapping left and middle...')
-        cards[LEFT], cards[MIDDLE] = cards[MIDDLE], cards[LEFT]
-    elif swap == 'm-r':
-        print('swapping middle and right...')
-        cards[MIDDLE], cards[RIGHT] = cards[RIGHT], cards[MIDDLE]
-    elif swap == 'l-r':
-        print('swapping left and right...')
-        cards[LEFT], cards[RIGHT] = cards[RIGHT], cards[LEFT]
-    elif swap == 'm-l':
-        print('swapping middle and left...')
-        cards[MIDDLE], cards[LEFT] = cards[LEFT], cards[MIDDLE]
-    elif swap == 'r-m':
-        print('swapping right and middle...')
-        cards[RIGHT], cards[MIDDLE] = cards[MIDDLE], cards[RIGHT]
-    elif swap == 'r-l':
-        print('swapping right and left...')
-        cards[RIGHT], cards[LEFT] = cards[LEFT], cards[RIGHT]
+        if self.moves == []:
+            self.resetGrid()
+        else:
+            self.grid = copy.copy(self.moves[-1])
 
-    time.sleep(DELAY)
+    def display(self):
+        print(' A B C D E F G H I')
+        for y in range(GRID_LENGTH):
+            for x in range(GRID_LENGTH):
+                if x == 0:
+                    print(str(y+1)+' ',end='')
 
-print('\n'*60)
+                print(self.grid[(x,y)]+' ',end='')
+                if x == 2 or x == 5:
+                    print('| ', end='')
+            print()
+
+            if y == 2 or y == 5:
+                print(' ------+-------+------')
+
+    def _isCompleteSetOfNumbers(self,numbers):
+        return sorted(numbers) == list('123456789')
+
+    def isSolved(self):
+        for row in range(GRID_LENGTH):
+            rowNumbers= []
+            for x in range(GRID_LENGTH):
+                number = self.grid[(x,row)]
+                rowNumbers.append(number)
+            if not self._isCompleteSetOfNumbers(rowNumbers):
+                return False
+
+        for column in range(GRID_LENGTH):
+            columnNumbers = []
+            for y in range(GRID_LENGTH):
+                number = self.grid[(column,y)]
+                columnNumbers.append(number)
+            if not self._isCompleteSetOfNumbers(columnNumbers):
+                return False
+
+        for boxx in (0,3,6):
+            for boxy in (0,3,6):
+                boxNumbers = []
+                for x in range(BOX_LENGTH):
+                    for y in range(BOX_LENGTH):
+                        number = self.grid[(boxx+x,boxy+y)]
+                        boxNumbers.append(number)
+                if not self._isCompleteSetOfNumbers(boxNumbers):
+                    return False
+
+        return True
+
+print(''' Sudoku Puzzle by asiancart
+        Sudoku is a number placement logic puzzle game. A Sudoku grid is a 9x9
+         grid of numbers. Try to place numbers in the grid such that every row,
+         column, and 3x3 box has the numbers 1 through 9 once and only once.
+          For example, here is a starting Sudoku grid and its solved form:
+          5 3 . | . 7 . | . . . 5 3 4 | 6 7 8 | 9 1 2
+          6 . . | 1 9 5 | . . . 6 7 2 | 1 9 5 | 3 4 8
+          . 9 8 | . . . | . 6 . 1 9 8 | 3 4 2 | 5 6 7
+          ------+-------+------ ------+-------+------
+          8 . . | . 6 . | . . 3 8 5 9 | 7 6 1 | 4 2 3
+          4 . . | 8 . 3 | . . 1 4 2 6 | 8 5 3 | 7 9 1
+          7 . . | . 2 . | . . 6 7 1 3 | 9 2 4 | 8 5 6
+          ------+-------+------ ------+-------+------
+          . 6 . | . . . | 2 8 . 9 6 1 | 5 3 7 | 2 8 4
+          . . . | 4 1 9 | . . 5 2 8 7 | 4 1 9 | 6 3 5
+          . . . | . 8 . | . 7 9 3 4 5 | 2 8 6 | 1 7 9
+          ''')
+input('Press enter the begin...')
+
+with open('sudokupuzzles.txt') as puzzleFile:
+    puzzles = puzzleFile.readlines()
+
+for i, puzzle in enumerate(puzzles):
+    puzzles[i] = puzzle.strip()
+
+grid = SudokuGrid(random.choice(puzzles))
 
 while True:
-    print('Which card has the Queen of Hearts? (LEFT MIDDLE RIGHT)')
-    guess = input('> ').upper()
+    grid.display()
 
-    if guess in ['LEFT', 'MIDDLE', 'RIGHT']:
-        if guess == 'LEFT':
-            guessIndex = 0
-        elif guess == 'MIDDLE':
-            guessIndex = 1
-        elif guess == 'RIGHT':
-            guessIndex = 2
-        break
+    if grid.isSolved():
+        print('Congratulations! You solved the puzzle!')
+        print('Thanks for playing!')
+        sys.exit()
 
-displayCards(cards)
+    while True:
+        print()
+        print('Enter a move, or RESET, NEW, UNDO, ORIGINAL, or QUIT:')
+        print('(For example, a move looks like "B4 9".)')
 
-if cards[guessIndex] == ('Q', HEARTS):
-    print("You won!")
-    print("Thanks for playing")
-else:
-    print('You lost!')
+        action = input('> ').upper().strip()
 
+        if len(action) > 0 and action[0] in ('R', 'N', 'U', 'O', 'Q'):
+            break
 
+        if len(action.split()) == 2:
+            space, number = action.split()
+            if len(space) != 2:
+                continue
 
+            column,row = space
+            if column not in list('ABCDEFGHI'):
+                print('There is no column', column)
+                continue
+            if not row.isdecimal() or not (1 <= int(row) <= 9):
+                print('There is no row', row)
+                continue
+            if not (1 <= int(number) <= 9):
+                print('Select a number from 1 to 9, not ', number)
+                continue
+            break
+
+    print()
+
+    if action.startswith('R'):
+        grid.resetGrid()
+        continue
+
+    if action.startswith('N'):
+        grid = SudokuGrid(random.choice(puzzles))
+        continue
+
+    if action.startswith('U'):
+        grid.undo()
+        continue
+
+    if action.startswith('O'):
+        originalGrid = SudokuGrid(grid.originalSetup)
+        print('The original grid looked like this:')
+        originalGrid.display()
+        input('Press Enter to continue...')
+
+    if action.startswith('Q'):
+        print('Thanks for playing!')
+        sys.exit()
+
+    if grid.makeMove(column, row, number) == False:
+        print('You cannot overwrite the original grid\'s numbers.')
+        print('Enter ORIGINAL to view the original grid.')
+        input('Press Enter to continue...')
