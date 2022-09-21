@@ -1,190 +1,122 @@
-import copy,random,sys
+import turtle
+import time
+import random
 
-EMPTY_SPACE = '.'
-GRID_LENGTH = 9
-BOX_LENGTH = 3
-FULL_GRID_SIZE = GRID_LENGTH * GRID_LENGTH
+speed= 0.14
+window = turtle.Screen()
+window.title('Snake Game by asiancart')
+window.bgcolor('lightgreen')
+window.setup(width=600,height=600)
+window.tracer(0)
 
-class SudokuGrid:
-    def __init__(self,originalSetup):
-        self.originalSetup = originalSetup
+head = turtle.Turtle()
+head.speed(0)
+head.shape("square")
+head.color("white")
+head.penup()
+head.goto(0,100)
+head.direction = "stop"
 
-        self.grid = {}
-        self.resetGrid()
-        self.moves = []
+food = turtle.Turtle()
+food.speed(0)
+food.shape('circle')
+food.color("red")
+food.penup()
+food.goto(0,0)
+food.shapesize(0.80,0.80)
 
-    def resetGrid(self):
+tails = []
+points = 0
 
-        for x in range(1,GRID_LENGTH+1):
-            for y in range(1,GRID_LENGTH+1):
-                self.grid[(x,y)] = EMPTY_SPACE
+write = turtle.Turtle()
+write.speed(0)
+write.shape('square')
+write.color("white")
+write.penup()
+write.goto(0,260)
+write.hideturtle()
+write.write("Points: {}".format(points), align='center', font=('Courier', 24, 'normal'))
 
-        assert len(self.originalSetup) ==FULL_GRID_SIZE
-        i = 0
-        y = 0
-        while i < FULL_GRID_SIZE:
-            for x in range(GRID_LENGTH):
-                self.grid[(x,y)] = self.originalSetup[i]
-                i += 1
-            y+= 1
 
-    def makeMove(self,column,row,number):
-        x = 'ABCDEFGHI'.find(column)
-        y = int(row) -1
+def move():
+    if head.direction == "up":
+        y = head.ycor()
+        head.sety(y+20)
+    if head.direction == "down":
+        y = head.ycor()
+        head.sety(y-20)
+    if head.direction == "right":
+        x = head.xcor()
+        head.setx(x+20)
+    if head.direction == "left":
+        x = head.xcor()
+        head.setx(x-20)
 
-        if self.originalSetup[y*GRID_LENGTH+x] != EMPTY_SPACE:
-            return False
+def goUp():
+    if head.direction != "down":
+        head.direction = "up"
 
-        self.grid[(x,y)] = number
 
-        self.moves.append(copy.copy(self.grid))
-        return True
+def goDown():
+    if head.direction != "up":
+        head.direction = "down"
 
-    def undo(self):
-        if self.moves == []:
-            return
+def goRight():
+    if head.direction != "left":
+        head.direction = "right"
 
-        self.moves.pop()
+def goLeft():
+    if head.direction != "right":
+        head.direction = "left"
 
-        if self.moves == []:
-            self.resetGrid()
-        else:
-            self.grid = copy.copy(self.moves[-1])
 
-    def display(self):
-        print(' A B C D E F G H I')
-        for y in range(GRID_LENGTH):
-            for x in range(GRID_LENGTH):
-                if x == 0:
-                    print(str(y+1)+' ',end='')
+window.listen()
+window.onkey(goUp, 'Up')
+window.onkey(goDown, 'Down')
+window.onkey(goRight, 'Right')
+window.onkey(goLeft, 'Left')
 
-                print(self.grid[(x,y)]+' ',end='')
-                if x == 2 or x == 5:
-                    print('| ', end='')
-            print()
-
-            if y == 2 or y == 5:
-                print(' ------+-------+------')
-
-    def _isCompleteSetOfNumbers(self,numbers):
-        return sorted(numbers) == list('123456789')
-
-    def isSolved(self):
-        for row in range(GRID_LENGTH):
-            rowNumbers= []
-            for x in range(GRID_LENGTH):
-                number = self.grid[(x,row)]
-                rowNumbers.append(number)
-            if not self._isCompleteSetOfNumbers(rowNumbers):
-                return False
-
-        for column in range(GRID_LENGTH):
-            columnNumbers = []
-            for y in range(GRID_LENGTH):
-                number = self.grid[(column,y)]
-                columnNumbers.append(number)
-            if not self._isCompleteSetOfNumbers(columnNumbers):
-                return False
-
-        for boxx in (0,3,6):
-            for boxy in (0,3,6):
-                boxNumbers = []
-                for x in range(BOX_LENGTH):
-                    for y in range(BOX_LENGTH):
-                        number = self.grid[(boxx+x,boxy+y)]
-                        boxNumbers.append(number)
-                if not self._isCompleteSetOfNumbers(boxNumbers):
-                    return False
-
-        return True
-
-print(''' Sudoku Puzzle by asiancart
-        Sudoku is a number placement logic puzzle game. A Sudoku grid is a 9x9
-         grid of numbers. Try to place numbers in the grid such that every row,
-         column, and 3x3 box has the numbers 1 through 9 once and only once.
-          For example, here is a starting Sudoku grid and its solved form:
-          5 3 . | . 7 . | . . . 5 3 4 | 6 7 8 | 9 1 2
-          6 . . | 1 9 5 | . . . 6 7 2 | 1 9 5 | 3 4 8
-          . 9 8 | . . . | . 6 . 1 9 8 | 3 4 2 | 5 6 7
-          ------+-------+------ ------+-------+------
-          8 . . | . 6 . | . . 3 8 5 9 | 7 6 1 | 4 2 3
-          4 . . | 8 . 3 | . . 1 4 2 6 | 8 5 3 | 7 9 1
-          7 . . | . 2 . | . . 6 7 1 3 | 9 2 4 | 8 5 6
-          ------+-------+------ ------+-------+------
-          . 6 . | . . . | 2 8 . 9 6 1 | 5 3 7 | 2 8 4
-          . . . | 4 1 9 | . . 5 2 8 7 | 4 1 9 | 6 3 5
-          . . . | . 8 . | . 7 9 3 4 5 | 2 8 6 | 1 7 9
-          ''')
-input('Press enter the begin...')
-
-with open('sudokupuzzles.txt') as puzzleFile:
-    puzzles = puzzleFile.readlines()
-
-for i, puzzle in enumerate(puzzles):
-    puzzles[i] = puzzle.strip()
-
-grid = SudokuGrid(random.choice(puzzles))
 
 while True:
-    grid.display()
+    window.update()
+    move()
+    time.sleep(speed)
 
-    if grid.isSolved():
-        print('Congratulations! You solved the puzzle!')
-        print('Thanks for playing!')
-        sys.exit()
+    if head.xcor() > 300 or head.xcor() < -300 or head.ycor() > 300 or head.ycor() < -300:
+        time.sleep(1)
+        head.goto(0,0)
+        head.direction = 'stop'
 
-    while True:
-        print()
-        print('Enter a move, or RESET, NEW, UNDO, ORIGINAL, or QUIT:')
-        print('(For example, a move looks like "B4 9".)')
+        for tail in tails:
+            tail.goto(1000,1000)
+        tails = []
+        points = 0
 
-        action = input('> ').upper().strip()
+        speed = 0.14
 
-        if len(action) > 0 and action[0] in ('R', 'N', 'U', 'O', 'Q'):
-            break
+    if head.distance(food) < 20:
+        x = random.randint(-250,250)
+        y = random.randint(-250,250)
+        food.goto(x,y)
+        speed -= 0.005
+        points += 10
+        write.clear()
+        write.write("Points: {}".format(points), align='center', font=('Courier', 24, 'normal'))
 
-        if len(action.split()) == 2:
-            space, number = action.split()
-            if len(space) != 2:
-                continue
 
-            column,row = space
-            if column not in list('ABCDEFGHI'):
-                print('There is no column', column)
-                continue
-            if not row.isdecimal() or not (1 <= int(row) <= 9):
-                print('There is no row', row)
-                continue
-            if not (1 <= int(number) <= 9):
-                print('Select a number from 1 to 9, not ', number)
-                continue
-            break
+        newTail = turtle.Turtle()
+        newTail.speed(0)
+        newTail.shape("square")
+        newTail.color("white")
+        newTail.penup()
+        tails.append(newTail)
 
-    print()
+    for i in range(len(tails)-1,0,-1):
+        x = tails[i-1].xcor()
+        y = tails[i-1].ycor()
+        tails[i].goto(x,y)
 
-    if action.startswith('R'):
-        grid.resetGrid()
-        continue
-
-    if action.startswith('N'):
-        grid = SudokuGrid(random.choice(puzzles))
-        continue
-
-    if action.startswith('U'):
-        grid.undo()
-        continue
-
-    if action.startswith('O'):
-        originalGrid = SudokuGrid(grid.originalSetup)
-        print('The original grid looked like this:')
-        originalGrid.display()
-        input('Press Enter to continue...')
-
-    if action.startswith('Q'):
-        print('Thanks for playing!')
-        sys.exit()
-
-    if grid.makeMove(column, row, number) == False:
-        print('You cannot overwrite the original grid\'s numbers.')
-        print('Enter ORIGINAL to view the original grid.')
-        input('Press Enter to continue...')
+    if len(tails) > 0:
+        x = head.xcor()
+        y = head.ycor()
+        tails[0].goto(x,y)
